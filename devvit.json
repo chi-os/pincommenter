@@ -1,0 +1,116 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "pincommenter",
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
+  "marketingAssets": {
+    "icon": "assets/icon.png"
+  },
+  "permissions": {
+    "reddit": true,
+    "redis": true
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "settings": {
+    "subreddit": {
+      "generalSetup": {
+        "type": "group",
+        "label": "1. General Setup & Exceptions",
+        "fields": {
+          "ignoreModerators": {
+            "type": "boolean",
+            "label": "Ignore Moderators",
+            "defaultValue": true,
+            "helpText": "If enabled, posts submitted by subreddit moderators will NOT receive any automated comments."
+          },
+          "ignoreApprovedUsers": {
+            "type": "boolean",
+            "label": "Ignore Approved Users",
+            "defaultValue": false,
+            "helpText": "If enabled, posts submitted by approved submitters will NOT receive any automated comments."
+          },
+          "pinComment": {
+            "type": "boolean",
+            "label": "Pin Bot Comment (Sticky)",
+            "defaultValue": true,
+            "helpText": "If enabled, the bot will automatically distinguish and sticky its generated comment to the top of the post."
+          },
+          "excludedFlairs": {
+            "type": "string",
+            "label": "Ignored Post Flairs (Comma separated)",
+            "defaultValue": "No Bot, Meta",
+            "helpText": "Posts with these exact flairs will be ignored (case-insensitive). If an excluded flair is added later, pending timers are cancelled and bot comments are deleted."
+          },
+          "waitTimeSeconds": {
+            "type": "number",
+            "label": "Wait Time (Seconds)",
+            "defaultValue": 60,
+            "helpText": "Delay in seconds before the bot executes and comments on the post."
+          }
+        }
+      },
+      "standardCommentsSetup": {
+        "type": "group",
+        "label": "2. Standard Comment Setup",
+        "fields": {
+          "enableStandard": {
+            "type": "boolean",
+            "label": "Enable Standard Comment",
+            "defaultValue": true,
+            "helpText": "If enabled, posts will receive a standard comment unless excluded."
+          },
+          "standardComment": {
+            "type": "string",
+            "label": "Standard Comment Text",
+            "defaultValue": "Hello {{author}}, thanks for your post!",
+            "helpText": "The default comment text to post. Use {{author}} to mention the post creator."
+          }
+        }
+      },
+      "keywordCommentsSetup": {
+        "type": "group",
+        "label": "3. Keyword Triggered Setup",
+        "fields": {
+          "enableKeyword": {
+            "type": "boolean",
+            "label": "Enable Keyword Comments",
+            "defaultValue": true,
+            "helpText": "If enabled, posts matching specific keywords or regex patterns receive a dedicated comment."
+          },
+          "keywordRules": {
+            "type": "string",
+            "label": "Keyword Rules",
+            "defaultValue": "help => Hello {{author}}, here is our help center!;; regex:\\b(bug|issue)\\b => Hi {{author}}, please report bugs in our tracker thread.",
+            "helpText": "Format: 'keyword => comment'. For regex matching, use 'regex:pattern => comment'. Separate multiple rules with double semicolons (;;) or newlines. First match wins."
+          },
+          "matchBehavior": {
+            "type": "select",
+            "label": "Match Behavior",
+            "options": [
+              { "label": "Only post keyword comment (Skip standard)", "value": "keyword_only" },
+              { "label": "Post both (Standard + Keyword comment)", "value": "both" }
+            ],
+            "defaultValue": "keyword_only",
+            "helpText": "Defines whether both standard and keyword comments are posted when a keyword matches."
+          }
+        }
+      }
+    }
+  },
+  "triggers": {
+    "onPostSubmit": "/internal/triggers/on-post-submit",
+    "onPostFlairUpdate": "/internal/triggers/on-post-flair-update"
+  },
+  "scheduler": {
+    "tasks": {
+      "postCommentJob": {
+        "endpoint": "/internal/scheduler/post-comment-job"
+      }
+    }
+  }
+}

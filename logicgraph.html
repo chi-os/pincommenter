@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pincommenter - Architektur- & Prozessfluss</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            font-size: 2rem;
+            color: #38bdf8;
+            margin-bottom: 8px;
+        }
+        p {
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+        .mermaid-container {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            border: 1px solid #334155;
+            max-width: 1400px;
+            width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>pincommenter — Architektur- & Prozessfluss</h1>
+        <p>Sequenzielle Pipeline: Trigger ➔ Scheduler ➔ Execution (inkl. Flair-Wächter)</p>
+    </header>
+
+    <div class="mermaid-container">
+        <div class="mermaid">
+        graph TD
+            classDef trigger fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc,rx:6px,ry:6px;
+            classDef check fill:#b45309,stroke:#f59e0b,stroke-width:2px,color:#fff,rx:6px,ry:6px;
+            classDef action fill:#1d4ed8,stroke:#60a5fa,stroke-width:2px,color:#fff,rx:6px,ry:6px;
+            classDef db fill:#6b21a8,stroke:#c084fc,stroke-width:2px,color:#fff,rx:6px,ry:6px;
+            classDef term fill:#334155,stroke:#64748b,stroke-width:1px,color:#94a3b8,rx:6px,ry:6px;
+
+            subgraph S1 ["Stufe 1: Neuer Beitrag & Evaluierung (onPostSubmit)"]
+                P1["Event: onPostSubmit"]:::trigger --> P2{"1. Autor-Check:<br/>Mod / Approved User ignorieren?"}:::check
+                P2 -- "Ja (Ignorieren)" --> P_IGN1["Vorgang beenden"]:::term
+                P2 -- "Nein (Prüfen)" --> P3{"2. Flair-Check:<br/>Flair auf Ausschlussliste?"}:::check
+                P3 -- "Ja (Case-Insensitive)" --> P_IGN1
+                P3 -- "Nein (Erlaubt)" --> P4{"3. Keyword- & Regex-Filter:<br/>Treffer in Titel/Body?"}:::check
+                P4 --> P5{"4. MatchBehavior:<br/>Standard / Keyword / Beide?"}:::check
+                P5 -- "Keine Treffer" --> P_IGN1
+                P5 -- "Kommentare ausgewählt" --> P6[("Redis-Check:<br/>Läuft bereits Job für Post?")]:::db
+                P6 -- "Bereits aktiv" --> P_IGN1
+                P6 -- "Neu" --> P7["Devvit Scheduler:<br/>postCommentJob in X Sekunden planen"]:::action
+                P7 --> P8[("Redis State schreiben:<br/>status: 'waiting', jobId, TTL: 24h")]:::db
+            end
+
+            subgraph S2 ["Stufe 2: Zeitverzögerte Ausführung (Scheduler postCommentJob)"]
+                T_RUN["Timer abgelaufen (postCommentJob)"]:::trigger --> T1{"Sicherheits-Check:<br/>Post existiert & Flair weiterhin erlaubt?"}:::check
+                T1 -- "Nein / Excluded Flair" --> T_ABORT[("Job abbrechen & Redis State löschen")]:::db
+                T1 -- "Ja (Gültig)" --> T2["Kommentar(e) absenden<br/>(reddit.submitComment)"]:::action
+                T2 --> T3{"Reddit Rate-Limit<br/>Fehler aufgetreten?"}:::check
+                T3 -- "Ja (Status 8)" --> T4["6s Pausieren (sleep) & Retry"]:::action
+                T4 --> T5{"Pin Bot Comment aktiv?<br/>(pinComment: true)"}:::check
+                T3 -- "Nein (Erfolg)" --> T5
+                T5 -- "Ja" --> T6["Kommentar als Mod anpinnen<br/>(distinguish & sticky)"]:::action
+                T5 -- "Nein" --> T7[("Redis State aktualisieren:<br/>status: 'posted', commentIds, TTL: 30d")]:::db
+                T6 --> T7
+            end
+
+            subgraph S3 ["Lifecycle-Wächter: Nachträgliche Flair-Änderung (onPostFlairUpdate)"]
+                F1["Event: onPostFlairUpdate"]:::trigger --> F2{"Neuer Flair auf Ausschlussliste?"}:::check
+                F2 -- "Nein" --> F_IGN["Keine Aktion erforderlich"]:::term
+                F2 -- "Ja" --> F3[("Redis State abfragen")]:::db
+                F3 --> F4{"Aktueller Status?"}:::check
+                F4 -- "status: 'waiting'" --> F5["Laufenden Timer abbrechen<br/>(scheduler.cancelJob)"]:::action
+                F4 -- "status: 'posted'" --> F6["Gepostete Kommentare löschen<br/>(reddit.remove)"]:::action
+                F5 --> F7[("Redis State löschen<br/>(redis.del)")]:::db
+                F6 --> F7
+            end
+
+            %% Direkte sequentielle Pipeline-Verbindungen
+            P8 ==>|"Wartezeit (waitTimeSeconds) verstreicht"| T_RUN
+            P8 -.->|"Überwachter State"| F3
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                darkMode: true,
+                background: '#1e293b',
+                primaryColor: '#38bdf8',
+                primaryTextColor: '#f8fafc',
+                primaryBorderColor: '#334155',
+                lineColor: '#94a3b8'
+            }
+        });
+    </script>
+</body>
+</html>
