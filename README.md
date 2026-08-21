@@ -5,7 +5,7 @@ A flexible, automated moderation bot built on the Devvit Web platform. This app 
 ## 💻 Source Code & Contributions
 
 The source code for this project is fully open-source. You can view the code, report issues, or contribute directly on GitHub:
-**[chi-os/pincommenter](https://www.google.com/search?q=https://github.com/chi-os/pincommenter)**
+**[chi-os/pincommenter](https://www.google.com/search?q=https://github.com/chi-os/pincommenter)** The complete programm logic as a  graph can be found at github [here](https://github.com/chi-os/pincommenter/blob/main/logicgraph.html)
 
 ---
 
