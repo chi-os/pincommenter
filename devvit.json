@@ -71,7 +71,7 @@
             "type": "string",
             "label": "Standard Comment Text",
             "defaultValue": "Hello {{author}}, thanks for your post!\n\nPlease remember to follow our community guidelines.",
-            "helpText": "The default comment text to post. Use {{author}} for the username and \n\n for line breaks/paragraphs."
+            "helpText": "The default comment text to post. Use {{author}} for the username and \\n for line breaks/paragraphs."
           }
         }
       },
@@ -89,7 +89,7 @@
             "type": "string",
             "label": "Keyword Rules",
             "defaultValue": "help => Hello {{author}}, here is our help center!\n\nCheck our FAQ before asking questions.;; regex:\\b(bug|issue)\\b => Hi {{author}},\n\nPlease report bugs in our weekly tracker thread.",
-            "helpText": "Format: 'keyword => comment'. For regex matching, use 'regex:pattern => comment'. Separate rules with double semicolons (;;). Use \n\n for line breaks within a comment. First match wins."
+            "helpText": "Format: 'keyword => comment'. For regex matching, use 'regex:pattern => comment'. Separate rules with double semicolons (;;). Use \\n for line breaks within a comment. First match wins."
           },
           "matchBehavior": {
             "type": "select",

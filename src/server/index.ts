@@ -18,6 +18,8 @@ import type {
 type T1 = `t1_${string}`;
 type T3 = `t3_${string}`;
 
+type CommentModel = Awaited<ReturnType<typeof reddit.submitComment>>;
+
 type CommentState =
   | { status: 'waiting'; jobId: string }
   | { status: 'posted'; commentIds: T1[] };
@@ -80,7 +82,7 @@ const isUserModerator = async (
       (m) => m.username.toLowerCase() === username.toLowerCase()
     );
   } catch (error) {
-    console.error(`🛑 [AuthCheck] Fehler beim Prüfen der Moderatoren: ${error}`);
+    console.error(`🛑 [AuthCheck] Fehler beim Prüfen der Moderatoren: ${String(error)}`);
     return false;
   }
 };
@@ -95,7 +97,7 @@ const isUserApproved = async (
       (u) => u.username.toLowerCase() === username.toLowerCase()
     );
   } catch (error) {
-    console.error(`🛑 [AuthCheck] Fehler beim Prüfen der Approved Users: ${error}`);
+    console.error(`🛑 [AuthCheck] Fehler beim Prüfen der Approved Users: ${String(error)}`);
     return false;
   }
 };
@@ -166,7 +168,7 @@ router.post<string, never, TriggerResponse, OnPostSubmitRequest>(
 
       if (isFlairExcluded(currentFlair, excludedFlairsConfig)) {
         console.log(
-          `⏭️ [onPostSubmit] Post ${postId} ignoriert (Flair-Ausschluss: "${currentFlair}").`
+          `⏭️ [onPostSubmit] Post ${postId} ignoriert (Flair-Ausschluss: "${currentFlair ?? ''}").`
         );
         res.json({ status: 'ok' });
         return;
@@ -204,7 +206,7 @@ router.post<string, never, TriggerResponse, OnPostSubmitRequest>(
               }
             } catch (error) {
               console.log(
-                `🛑 [onPostSubmit] Ungültiges Regex-Muster "${pattern}": ${error}`
+                `🛑 [onPostSubmit] Ungültiges Regex-Muster "${pattern}": ${String(error)}`
               );
             }
           } else {
@@ -283,7 +285,7 @@ router.post<string, never, TriggerResponse, OnPostSubmitRequest>(
         `⏰ [onPostSubmit] Timer für ${postId} in ${waitTimeSeconds} Sekunden gestartet (JobID: ${jobId}).`
       );
     } catch (error) {
-      console.error(`🛑 [onPostSubmit] Kritischer Fehler: ${error}`);
+      console.error(`🛑 [onPostSubmit] Kritischer Fehler: ${String(error)}`);
     }
 
     res.json({ status: 'ok' });
@@ -326,7 +328,7 @@ router.post<
 
     if (isFlairExcluded(currentFlair, excludedFlairsConfig)) {
       console.log(
-        `⏭️ [postCommentJob] Post ${postId} Flair wurde nachträglich auf "${currentFlair}" geändert. Abbruch.`
+        `⏭️ [postCommentJob] Post ${postId} Flair wurde nachträglich auf "${currentFlair ?? ''}" geändert. Abbruch.`
       );
       await redis.del(redisKey);
       res.json({ status: 'ok' });
@@ -341,7 +343,7 @@ router.post<
       const text = textsToPost[i];
       if (!text) continue;
 
-      let commentInstance: any = null;
+      let commentInstance: CommentModel | null = null;
       let commentId: T1 | null = null;
 
       try {
@@ -359,11 +361,11 @@ router.post<
             commentId = commentInstance.id as T1;
           } catch (retryError) {
             console.error(
-              `🛑 [postCommentJob] Retry fehlgeschlagen: ${retryError}`
+              `🛑 [postCommentJob] Retry fehlgeschlagen: ${String(retryError)}`
             );
           }
         } else {
-          console.error(`🛑 [postCommentJob] Fehler beim Posten des Kommentars: ${error}`);
+          console.error(`🛑 [postCommentJob] Fehler beim Posten des Kommentars: ${String(error)}`);
         }
       }
 
@@ -374,28 +376,20 @@ router.post<
         // Kommentar anpinnen (distinguish & sticky)
         if (pinComment) {
           try {
-            if (typeof commentInstance.distinguish === 'function') {
-              await commentInstance.distinguish(true);
-            } else if (typeof (reddit as any).distinguishComment === 'function') {
-              await (reddit as any).distinguishComment({ id: commentId, sticky: true });
-            }
+            await commentInstance.distinguish(true);
             console.log(`📌 [postCommentJob] Kommentar ${commentId} erfolgreich als Sticky angepinnt.`);
           } catch (pinErr) {
-            console.error(`🛑 [postCommentJob] Fehler beim Pinnen des Kommentars ${commentId}: ${pinErr}`);
+            console.error(`🛑 [postCommentJob] Fehler beim Pinnen des Kommentars ${commentId}: ${String(pinErr)}`);
           }
         }
 
         // Kommentar sperren (lock)
         if (lockComment) {
           try {
-            if (typeof commentInstance.lock === 'function') {
-              await commentInstance.lock();
-            } else if (typeof (reddit as any).lock === 'function') {
-              await (reddit as any).lock({ id: commentId });
-            }
+            await commentInstance.lock();
             console.log(`🔒 [postCommentJob] Kommentar ${commentId} erfolgreich gesperrt (Locked).`);
           } catch (lockErr) {
-            console.error(`🛑 [postCommentJob] Fehler beim Sperren des Kommentars ${commentId}: ${lockErr}`);
+            console.error(`🛑 [postCommentJob] Fehler beim Sperren des Kommentars ${commentId}: ${String(lockErr)}`);
           }
         }
       }
@@ -418,7 +412,7 @@ router.post<
       await redis.del(redisKey);
     }
   } catch (error) {
-    console.error(`🛑 [postCommentJob] Kritischer Fehler im Scheduler: ${error}`);
+    console.error(`🛑 [postCommentJob] Kritischer Fehler im Scheduler: ${String(error)}`);
   }
 
   res.json({ status: 'ok' });
@@ -463,13 +457,13 @@ router.post<string, never, TriggerResponse, OnPostFlairUpdateRequest>(
         if (state.status === 'waiting') {
           await scheduler.cancelJob(state.jobId);
           console.log(
-            `🗑️ [onPostFlairUpdate] Timer ${state.jobId} für ${postId} abgebrochen (Flair-Ausschluss: "${newFlair}").`
+            `🗑️ [onPostFlairUpdate] Timer ${state.jobId} für ${postId} abgebrochen (Flair-Ausschluss: "${newFlair ?? ''}").`
           );
         } else if (state.status === 'posted') {
           for (const commentId of state.commentIds) {
             await reddit.remove(commentId, false);
             console.log(
-              `🗑️ [onPostFlairUpdate] Kommentar ${commentId} auf ${postId} gelöscht (Flair-Ausschluss: "${newFlair}").`
+              `🗑️ [onPostFlairUpdate] Kommentar ${commentId} auf ${postId} gelöscht (Flair-Ausschluss: "${newFlair ?? ''}").`
             );
           }
         }
@@ -478,7 +472,7 @@ router.post<string, never, TriggerResponse, OnPostFlairUpdateRequest>(
         console.log(`🗑️ [onPostFlairUpdate] Redis-Status für ${postId} bereinigt.`);
       }
     } catch (error) {
-      console.error(`🛑 [onPostFlairUpdate] Fehler beim Aufräumen: ${error}`);
+      console.error(`🛑 [onPostFlairUpdate] Fehler beim Aufräumen: ${String(error)}`);
     }
 
     res.json({ status: 'ok' });
@@ -488,7 +482,7 @@ router.post<string, never, TriggerResponse, OnPostFlairUpdateRequest>(
 app.use(router);
 const server = createServer(app);
 server.on('error', (err: Error) =>
-  console.error(`🛑 [Server] Fehler: ${err.stack}`)
+  console.error(`🛑 [Server] Fehler: ${err.stack ?? err.message}`)
 );
 server.listen(getServerPort());
 
