@@ -49,6 +49,12 @@ const parseRule = (
   return { condition, commentText };
 };
 
+const formatCommentText = (rawText: string, authorName: string): string => {
+  return rawText
+    .replace(/\{\{author\}\}/g, authorName)
+    .replace(/\\n/g, '\n');
+};
+
 const isFlairExcluded = (
   flairText: string | undefined,
   excludedFlairsConfig: string
@@ -153,7 +159,7 @@ router.post<string, never, TriggerResponse, OnPostSubmitRequest>(
         }
       }
 
-      // Case-Insensitive Flair Blacklist Check
+      // Flair Blacklist Check (Case-Insensitive)
       const currentFlair = fullPost.flair?.text;
       const excludedFlairsConfig =
         ((await settings.get('excludedFlairs')) as string) ?? '';
@@ -223,7 +229,7 @@ router.post<string, never, TriggerResponse, OnPostSubmitRequest>(
           rawStandard.trim().length > 0 ? rawStandard.trim() : null;
       }
 
-      // 3. Finale Kommentarliste zusammenstellen
+      // 3. Finale Kommentar-Liste bestimmen
       const commentsToPost: string[] = [];
 
       if (matchedKeywordComment) {
@@ -244,7 +250,7 @@ router.post<string, never, TriggerResponse, OnPostSubmitRequest>(
 
       const displayAuthor = authorName || 'Redditor';
       const preparedTexts = commentsToPost.map((text) =>
-        text.replace(/\{\{author\}\}/g, displayAuthor)
+        formatCommentText(text, displayAuthor)
       );
 
       const redisKey = `state_${postId}`;
@@ -285,7 +291,7 @@ router.post<string, never, TriggerResponse, OnPostSubmitRequest>(
 );
 
 // ---------------------------------------------------------
-// 2. SCHEDULER: postCommentJob
+// 2. SCHEDULER: postCommentJob, Sticky & Lock
 // ---------------------------------------------------------
 router.post<
   string,
@@ -313,7 +319,7 @@ router.post<
       return;
     }
 
-    // Case-Insensitive Flair Check vor Ausführung
+    // Flair Check vor dem Posten
     const currentFlair = fullPost.flair?.text;
     const excludedFlairsConfig =
       ((await settings.get('excludedFlairs')) as string) ?? '';
@@ -328,6 +334,7 @@ router.post<
     }
 
     const pinComment = ((await settings.get('pinComment')) as boolean) ?? true;
+    const lockComment = ((await settings.get('lockComment')) as boolean) ?? false;
     const postedCommentIds: T1[] = [];
 
     for (let i = 0; i < textsToPost.length; i++) {
@@ -362,8 +369,9 @@ router.post<
 
       if (commentId && commentInstance) {
         postedCommentIds.push(commentId);
-        console.log(`💬 [postCommentJob] Kommentar ${commentId} erfolgreich auf ${postId} gepostet.`);
+        console.log(`💬 [postCommentJob] Kommentar ${commentId} auf ${postId} gepostet.`);
 
+        // Kommentar anpinnen (distinguish & sticky)
         if (pinComment) {
           try {
             if (typeof commentInstance.distinguish === 'function') {
@@ -374,6 +382,20 @@ router.post<
             console.log(`📌 [postCommentJob] Kommentar ${commentId} erfolgreich als Sticky angepinnt.`);
           } catch (pinErr) {
             console.error(`🛑 [postCommentJob] Fehler beim Pinnen des Kommentars ${commentId}: ${pinErr}`);
+          }
+        }
+
+        // Kommentar sperren (lock)
+        if (lockComment) {
+          try {
+            if (typeof commentInstance.lock === 'function') {
+              await commentInstance.lock();
+            } else if (typeof (reddit as any).lock === 'function') {
+              await (reddit as any).lock({ id: commentId });
+            }
+            console.log(`🔒 [postCommentJob] Kommentar ${commentId} erfolgreich gesperrt (Locked).`);
+          } catch (lockErr) {
+            console.error(`🛑 [postCommentJob] Fehler beim Sperren des Kommentars ${commentId}: ${lockErr}`);
           }
         }
       }
@@ -441,13 +463,13 @@ router.post<string, never, TriggerResponse, OnPostFlairUpdateRequest>(
         if (state.status === 'waiting') {
           await scheduler.cancelJob(state.jobId);
           console.log(
-            `🗑️ [onPostFlairUpdate] Timer ${state.jobId} für ${postId} abgebrochen (Flair-Änderung: "${newFlair}").`
+            `🗑️ [onPostFlairUpdate] Timer ${state.jobId} für ${postId} abgebrochen (Flair-Ausschluss: "${newFlair}").`
           );
         } else if (state.status === 'posted') {
           for (const commentId of state.commentIds) {
             await reddit.remove(commentId, false);
             console.log(
-              `🗑️ [onPostFlairUpdate] Kommentar ${commentId} auf ${postId} gelöscht (Flair-Änderung: "${newFlair}").`
+              `🗑️ [onPostFlairUpdate] Kommentar ${commentId} auf ${postId} gelöscht (Flair-Ausschluss: "${newFlair}").`
             );
           }
         }

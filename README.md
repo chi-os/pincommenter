@@ -79,6 +79,11 @@ Settings are fully integrated into Reddit's native Mod Tools (**Mod Tools -> App
 
 # Changelog
 
+## 0.2.0
+
+* Added sticky-option
+* Added Linebreaks
+
 ## 0.1.0
 
 * Initial release on the Devvit Web platform.

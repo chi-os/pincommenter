@@ -5,9 +5,6 @@
     "dir": "dist/server",
     "entry": "index.cjs"
   },
-  "marketingAssets": {
-    "icon": "assets/icon.png"
-  },
   "permissions": {
     "reddit": true,
     "redis": true
@@ -40,6 +37,12 @@
             "defaultValue": true,
             "helpText": "If enabled, the bot will automatically distinguish and sticky its generated comment to the top of the post."
           },
+          "lockComment": {
+            "type": "boolean",
+            "label": "Lock Bot Comment",
+            "defaultValue": false,
+            "helpText": "If enabled, the bot comment will be locked so users cannot reply directly to it."
+          },
           "excludedFlairs": {
             "type": "string",
             "label": "Ignored Post Flairs (Comma separated)",
@@ -67,8 +70,8 @@
           "standardComment": {
             "type": "string",
             "label": "Standard Comment Text",
-            "defaultValue": "Hello {{author}}, thanks for your post!",
-            "helpText": "The default comment text to post. Use {{author}} to mention the post creator."
+            "defaultValue": "Hello {{author}}, thanks for your post!\n\nPlease remember to follow our community guidelines.",
+            "helpText": "The default comment text to post. Use {{author}} for the username and \n\n for line breaks/paragraphs."
           }
         }
       },
@@ -85,8 +88,8 @@
           "keywordRules": {
             "type": "string",
             "label": "Keyword Rules",
-            "defaultValue": "help => Hello {{author}}, here is our help center!;; regex:\\b(bug|issue)\\b => Hi {{author}}, please report bugs in our tracker thread.",
-            "helpText": "Format: 'keyword => comment'. For regex matching, use 'regex:pattern => comment'. Separate multiple rules with double semicolons (;;) or newlines. First match wins."
+            "defaultValue": "help => Hello {{author}}, here is our help center!\n\nCheck our FAQ before asking questions.;; regex:\\b(bug|issue)\\b => Hi {{author}},\n\nPlease report bugs in our weekly tracker thread.",
+            "helpText": "Format: 'keyword => comment'. For regex matching, use 'regex:pattern => comment'. Separate rules with double semicolons (;;). Use \n\n for line breaks within a comment. First match wins."
           },
           "matchBehavior": {
             "type": "select",
