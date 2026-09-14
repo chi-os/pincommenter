@@ -29,7 +29,7 @@
     "@devvit/start": "^0.14.3",
     "@eslint/js": "10.0.1",
     "@types/express": "^5.0.6",
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.13.4",
     "eslint": "10.10.0",
     "globals": "17.12.0",
     "prettier": "3.9.6",
