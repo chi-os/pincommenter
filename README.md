@@ -79,6 +79,10 @@ Settings are fully integrated into Reddit's native Mod Tools (**Mod Tools -> App
 
 # Changelog
 
+## 0.2.1
+
+* Updated DEVVIT
+
 ## 0.2.0
 
 * Added sticky-option
