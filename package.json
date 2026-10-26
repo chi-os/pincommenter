@@ -23,7 +23,7 @@
     "@hono/node-server": "^2.1.5",
     "devvit": "0.15.0",
     "express": "^5.3.0",
-    "hono": "4.13.13"
+    "hono": "4.13.14"
   },
   "devDependencies": {
     "@devvit/start": "^0.15.0",
