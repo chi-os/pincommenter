@@ -19,14 +19,14 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
-    "@devvit/web": "0.15.1",
+    "@devvit/web": "0.15.2",
     "@hono/node-server": "^2.1.5",
-    "devvit": "0.15.1",
+    "devvit": "0.15.2",
     "express": "^5.3.0",
     "hono": "4.13.14"
   },
   "devDependencies": {
-    "@devvit/start": "^0.15.1",
+    "@devvit/start": "^0.15.2",
     "@eslint/js": "10.0.1",
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.2",
